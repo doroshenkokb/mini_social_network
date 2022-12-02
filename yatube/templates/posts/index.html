@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% load thumbnail %}
+{% block title %} 
+  Записи сообщества
+{% endblock %} 
+{% block content %}
+  <div class="container py-5">
+    <h1>Главная страница</h1>
+    {% include 'posts/includes/switcher.html' %}
+    {% for post in page_obj %}
+      {% include 'includes/post_inc.html' with show_link=True %}
+      {% if not forloop.last %}<hr>{% endif %}
+    {% endfor %}
+    {% include 'posts/includes/paginator.html' %}
+  <div>
+{% endblock %}

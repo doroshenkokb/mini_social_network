@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Об авторе проекта{% endblock %}
+{% block content %}
+  {% load static %}
+  <div class="container">
+    <div class="row">
+      <div class="col-12">
+        <h1>Дорошенко К.Б.</h1>
+      </div>
+    </div>
+  </div>
+  <div class="container">
+    <div class="row">
+      <div class="col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6">
+        <p>
+          Я только начинаю свой путь в области IT, и по мере получения знаний, 
+          информация на данном сайте и его возможности будут расширяться.
+        </p>
+        <p>
+          В 2022 году впервые окунулся в язык програмирования Python, 
+          прошел ни один курс на популярных учебных порталах,
+          сами основы програмирования на языке Python оказались 
+          не сложными для изучения, но по мере продвижения обучения,
+          этот процес усложнялся, 
+          но ни кто и не ожидал что будет легко..
+        </p>
+        <p>Viam supervadet vadens</p>
+      </div>
+      <div class="col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6">
+        <img src="{% static 'img/Mayak.jpg' %}">
+      </div>
+    </div>
+  </div>
+  <div class="container">
+    <div class="row">
+      <div class="col-12">
+        <h2>Контакты для связи</h2>
+      </div>
+    </div>
+  </div>
+  <div class="container">
+    <div class="row">
+      <div class="col-12">
+          <p>Телефон: +7 (967) 149-73-73</p>
+          <p><a href="https://github.com/TroutBBBoy">github.com</a></p>
+      </div>
+    </div>
+  </div>
+{% endblock %}
