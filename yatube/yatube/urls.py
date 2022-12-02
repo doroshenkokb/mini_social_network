@@ -11,6 +11,7 @@ urlpatterns = [
     path('about/', include('about.urls', namespace='about')),
 ]
 handler404 = 'core.views.page_not_found'
+
 if settings.DEBUG:
     urlpatterns += static(
         settings.MEDIA_URL, document_root=settings.MEDIA_ROOT
