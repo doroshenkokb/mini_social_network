@@ -9,45 +9,75 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
-from posts.models import Comment, Follow, Group, Post
+from posts.models import Follow, Group, Post
 
 User = get_user_model()
+TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
 
 
+@override_settings(MEDIA_ROOT=TEMP_MEDIA_ROOT)
 class PostViewsTests(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
         cls.user = User.objects.create(username='КБ')
+        cls.user_follower = User.objects.create(username='follower')
+        cls.user_2 = User.objects.create_user(username='user_2')
         cls.group = Group.objects.create(
             title='Тестовая группа',
             slug='test-slug',
             description='Тестовое описание',
         )
+        cls.gif_ka = (
+            b'\x47\x49\x46\x38\x39\x61\x01\x00\x01\x00\x00\x00\x00\x21\xf9\x04'
+            b'\x01\x0a\x00\x01\x00\x2c\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02'
+            b'\x02\x4c\x01\x00\x3b'
+        )
+        cls.uploaded = SimpleUploadedFile(
+            name='gifka.gif',
+            content=cls.gif_ka,
+            content_type='image/gif'
+        )
         cls.post = Post.objects.create(
             author=cls.user,
             text='Тестовый пост',
             group=cls.group,
+            image=cls.uploaded
+        )
+        cls.follow = Follow.objects.create(
+            user=cls.user_follower,
+            author=cls.user
         )
 
     def setUp(self):
         self.guest_client = Client()
         self.authorized_client = Client()
         self.authorized_client.force_login(PostViewsTests.user)
+        self.authorized_client_follower = Client()
+        self.authorized_client_follower.force_login(self.user_follower)
+        self.authorized_client_2 = Client()
+        self.authorized_client_2.force_login(self.user_2)
         cache.clear()
 
-    def context_ckeck(self, response, text, author, group):
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+        shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
+
+    def context_ckeck(self, response, text, author, group, image):
         """Проверка контекста."""
         if 'page_obj' in response.context:
             post = response.context['page_obj'][0]
             self.assertEqual(post.text, text)
             self.assertEqual(post.author, author)
             self.assertEqual(post.group, group)
+            self.assertEqual(post.image, image)
         else:
             post = response.context['post']
             self.assertEqual(post.text, text)
             self.assertEqual(post.author, author)
             self.assertEqual(post.group, group)
+            self.assertEqual(post.image, image)
 
     def test_pages_uses_correct_template(self):
         """URL-адрес использует соответствующий шаблон."""
@@ -66,15 +96,18 @@ class PostViewsTests(TestCase):
             ): 'posts/profile.html',
             reverse(
                 'posts:post_detail',
-                kwargs={'post_id': '1'}
+                kwargs={'post_id': self.post.id}
             ): 'posts/post_detail.html',
             reverse(
                 'posts:post_edit',
-                kwargs={'post_id': '1'}
+                kwargs={'post_id': self.post.id}
             ): 'posts/create_post.html',
             reverse(
                 'posts:post_create'
             ): 'posts/create_post.html',
+            reverse(
+                'posts:follow_index'
+            ): 'posts/follow.html',
         }
         for reverse_name, template in templates_pages_names.items():
             with self.subTest(reverse_name=reverse_name):
@@ -95,6 +128,7 @@ class PostViewsTests(TestCase):
             self.post.text,
             self.post.author,
             self.post.group,
+            self.post.image,
         )
         self.assertEqual(response.context['group'], self.group)
 
@@ -112,6 +146,7 @@ class PostViewsTests(TestCase):
             self.post.text,
             self.post.author,
             self.post.group,
+            self.post.image,
         )
         self.assertEqual(response.context['author'], self.user)
 
@@ -125,6 +160,24 @@ class PostViewsTests(TestCase):
             self.post.text,
             self.post.author,
             self.post.group,
+            self.post.image,
+        )
+
+    def test_follow_index_show_correct_context(self):
+        """
+        Проверка контекста шаблона /follow_index/.
+        """
+        response = self.authorized_client_follower.get(
+            reverse(
+                'posts:follow_index'
+            )
+        )
+        self.context_ckeck(
+            response,
+            self.post.text,
+            self.post.author,
+            self.post.group,
+            self.post.image,
         )
 
     def test_post_detail_show_correct_context(self):
@@ -137,9 +190,10 @@ class PostViewsTests(TestCase):
             self.post.text,
             self.post.author,
             self.post.group,
+            self.post.image,
         )
 
-    def test_create_show_and_post_edit_show_correct_context(self):
+    def test_create__and_post_edit_show_correct_context(self):
         """Шаблоны post_edit и create сформированы с правильным контекстом."""
         urls = (
             reverse(
@@ -205,51 +259,50 @@ class PostViewsTests(TestCase):
         )
         self.assertNotIn(post, response.context['page_obj'])
 
-    def test_check_comment_can_use_only_authorized_client(self):
-        """"Комментарий появляется на странице поста."""
-        comments_count = Comment.objects.count()
-        form_data = {"text": "Тестовый коммент"}
-        response = self.authorized_client.post(
-            reverse("posts:add_comment", kwargs={"post_id": self.post.id}),
-            data=form_data,
-            follow=True,
-        )
-        self.assertRedirects(
-            response, reverse(
-                "posts:post_detail", kwargs={"post_id": self.post.id}
+    def test_follow(self):
+        """Тесты на подписку."""
+        self.authorized_client_follower.get(
+            reverse(
+                'posts:profile_follow', kwargs={'username': self.user}
             )
         )
-        self.assertEqual(Comment.objects.count(), comments_count + 1)
         self.assertTrue(
-            Comment.objects.filter(
-                text="Тестовый коммент"
+            Follow.objects.filter(
+                author=self.user,
+                user=self.user_follower,
+            ).exists(),
+        )
+
+    def test_unfollow(self):
+        """Тесты на отписку."""
+        self.authorized_client_2.get(
+            reverse(
+                'posts:profile_unfollow', kwargs={'username': self.user}
+            )
+        )
+        self.assertFalse(
+            Follow.objects.filter(
+                author=self.user,
+                user=self.user_2
             ).exists()
         )
 
-    def test_follow_page(self):
-        """"Проверка подписок."""
-        # страница подписок пуста
-        response = self.authorized_client.get(reverse('posts:follow_index'))
-        self.assertEqual(len(response.context["page_obj"]), 0)
-        # подписка на автора поста
-        Follow.objects.get_or_create(user=self.user, author=self.post.author)
-        response_with_follow = self.authorized_client.get(
+    def test_follow_index(self):
+        """
+        Проверка что новая запись пользователя появляется
+        в ленте тех, кто на него подписан и
+        не появляется в ленте тех, кто не подписан.
+        """
+        response_follower = self.authorized_client_follower.get(
             reverse('posts:follow_index')
         )
-        self.assertEqual(len(response_with_follow.context['page_obj']), 1)
-        # подписка появилась у фоловера
-        self.assertIn(self.post, response_with_follow.context["page_obj"])
-        # пост отсутствует у обычного пользователя
-        without_subscribes = User.objects.create(username='БезПодписок')
-        self.authorized_client.force_login(without_subscribes)
-        response_with_follow = self.authorized_client.get(
+        post_follow = response_follower.context.get('page_obj')[0]
+        response_unfollower = self.authorized_client_2.get(
             reverse('posts:follow_index')
         )
-        self.assertNotIn(self.post, response_with_follow.context['page_obj'])
-        # отписка от автора
-        Follow.objects.all().delete()
-        response = self.authorized_client.get(reverse('posts:follow_index'))
-        self.assertEqual(len(response.context['page_obj']), 0)
+        post_unfollow = response_unfollower.context.get('page_obj')
+        self.assertEqual(post_follow, self.post)
+        self.assertEqual(post_unfollow.object_list.count(), 0)
 
     def test_cache_index(self):
         """Проверка хранения и очистка кэша."""
@@ -266,75 +319,3 @@ class PostViewsTests(TestCase):
         response_new = self.authorized_client.get(reverse('posts:index'))
         new_posts = response_new.content
         self.assertNotEqual(old_posts, new_posts)
-
-
-TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
-
-
-@override_settings(MEDIA_ROOT=TEMP_MEDIA_ROOT)
-class TaskPagesTests(TestCase):
-    @classmethod
-    def setUpClass(cls):
-        super(TaskPagesTests, cls).setUpClass()
-        cls.user = User.objects.create_user(username='КБ')
-        cls.group = Group.objects.create(
-            title='Тестовая группа',
-            slug='test-slug',
-            description='Тестовое описание',
-        )
-        cls.gif_ka = (
-            b'\x47\x49\x46\x38\x39\x61\x01\x00\x01\x00\x00\x00\x00\x21\xf9\x04'
-            b'\x01\x0a\x00\x01\x00\x2c\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02'
-            b'\x02\x4c\x01\x00\x3b'
-        )
-        cls.uploaded = SimpleUploadedFile(
-            name='gifka.gif',
-            content=cls.gif_ka,
-            content_type='image/gif'
-        )
-        cls.post = Post.objects.create(
-            author=cls.user,
-            text='Тестовый текст',
-            group=cls.group,
-            image=cls.uploaded,
-        )
-
-    @classmethod
-    def tearDownClass(cls):
-        super().tearDownClass()
-        shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
-
-    def setUp(self):
-        self.guest_client = Client()
-
-    def test_image_in_index_and_profile_page(self):
-        """Картинка передается на страницы
-        /index/, /profile/, /group_list/ .
-        """
-        urls = (
-            reverse('posts:index'),
-            reverse('posts:profile', kwargs={'username': self.post.author}),
-            reverse('posts:group_list', kwargs={'slug': self.group.slug}),
-        )
-        for url in urls:
-            with self.subTest(url):
-                response = self.guest_client.get(url)
-                obj = response.context['page_obj'][0]
-                self.assertEqual(obj.image, self.post.image)
-
-    def test_image_in_post_detail_page(self):
-        """Картинка передается на страницу post_detail."""
-        response = self.guest_client.get(
-            reverse('posts:post_detail', kwargs={'post_id': self.post.id})
-        )
-        obj = response.context['post']
-        self.assertEqual(obj.image, self.post.image)
-
-    def test_image_in_page(self):
-        """Пост с картинкой создается в БД"""
-        self.assertTrue(
-            Post.objects.filter(
-                text="Тестовый текст",
-                image='posts/gifka.gif'
-            ).exists()
-        )

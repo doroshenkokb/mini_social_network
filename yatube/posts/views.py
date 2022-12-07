@@ -4,7 +4,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.cache import cache_page
 
 from .forms import CommentForm, PostForm
-from .models import Comment, Follow, Group, Post
+from .models import Follow, Group, Post
 from .utils import listsing
 
 User = get_user_model()
@@ -35,24 +35,31 @@ def profile(request, username):
     """Профиль пользователя."""
     username = get_object_or_404(User, username=username)
     posts = username.posts.select_related('author', 'group')
-    following = username.following.exists()
-    context = {
-        'author': username,
-        'page_obj': listsing(request, posts),
-        'following': following,
-    }
-    return render(request, 'posts/profile.html', context)
+    if request.user.is_authenticated:
+        following = username.following.exists()
+        context = {
+            'author': username,
+            'page_obj': listsing(request, posts),
+            'following': following,
+        }
+        return render(request, 'posts/profile.html', context)
+    return render(
+        request,
+        'posts/profile.html',
+        {
+            'author': username,
+            'page_obj': listsing(request, posts),
+        }
+    )
 
 
 def post_detail(request, post_id):
     """Пост подробно"""
     post = get_object_or_404(Post, pk=post_id)
-    form = CommentForm(request.POST or None)
-    comments = Comment.objects.filter(post=post)
+    form = CommentForm()
     context = {
         'post': post,
         'form': form,
-        'comments': comments,
     }
     return render(request, 'posts/post_detail.html', context)
 
@@ -60,49 +67,37 @@ def post_detail(request, post_id):
 @login_required
 def post_create(request):
     """Создание поста."""
-    user = request.user
+    form = PostForm(request.POST or None)
     if request.method == 'POST':
-        form = PostForm(
-            request.POST,
-            files=request.FILES or None
-        )
         if form.is_valid():
-            form = form.save(commit=False)
-            form.author = user
-            form.save()
-            return redirect('posts:profile', user)
+            create_post = form.save(commit=False)
+            create_post.author = request.user
+            create_post.save()
+            return redirect('posts:profile', create_post.author)
         return render(request, 'posts/create_post.html', {'form': form})
-    form = PostForm()
-    context = {
-        'form': form,
-    }
-    template = 'posts/create_post.html'
-    return render(request, template, context)
+    return render(request, 'posts/create_post.html', {'form': form})
 
 
 @login_required
 def post_edit(request, post_id):
-    """Редактироание поста."""
-    post = get_object_or_404(Post, pk=post_id)
-    if request.user != post.author:
-        return redirect('posts:post_detail', post_id=post_id)
+    """Функция страницы редактирования постов."""
+    edit_post = get_object_or_404(Post, id=post_id)
+    if request.user != edit_post.author:
+        return redirect('posts:post_detail', post_id)
     form = PostForm(
         request.POST or None,
         files=request.FILES or None,
-        instance=post,
-
+        instance=edit_post
     )
-    if request.method == 'POST':
-        if form.is_valid:
-            form.save()
-            return redirect(f'/posts/{post_id}/')
+    if form.is_valid():
+        form.save()
+        return redirect('posts:post_detail', post_id)
     context = {
-        'post': post,
         'form': form,
-        'is_edit': True,
+        'edit_post': True,
+        'post_id': post_id,
     }
-    template = 'posts/create_post.html'
-    return render(request, template, context)
+    return render(request, 'posts/create_post.html', context)
 
 
 @login_required
@@ -121,12 +116,8 @@ def add_comment(request, post_id):
 @login_required
 def follow_index(request):
     """Посты авторов, на которых подписан пользователь."""
-    follower = Follow.objects.filter(user=request.user).values_list(
-        "author_id", flat=True
-    )
-    posts = Post.objects.filter(author_id__in=follower)
+    posts = Post.objects.filter(author__following__user=request.user)
     context = {
-        'title': 'Подписки',
         'page_obj': listsing(request, posts),
     }
     template = 'posts/follow.html'
@@ -146,6 +137,7 @@ def profile_follow(request, username):
 def profile_unfollow(request, username):
     """Отписка."""
     author = get_object_or_404(User, username=username)
-    if author != request.user:
-        Follow.objects.get(user=request.user, author=author).delete()
-    return redirect("posts:follow_index")
+    follower = Follow.objects.filter(user=request.user, author=author)
+    if request.user != author and follower.exists():
+        follower.delete()
+    return redirect('posts:profile', username=username)

@@ -9,7 +9,7 @@
       <aside class="col-12 col-md-3">
         <ul class="list-group list-group-flush">
           <li class="list-group-item">Дата публикации: {{ post.pub_date|date:"d E Y" }}</li>
-          {% if post.group%}  
+          {% if post.group %}  
             <li class="list-group-item">
               Группа: {{ post.group.title }}
               <a target="_blank" 
@@ -33,11 +33,11 @@
           <img class="card-img my-2" src="{{ im.url }}">
         {% endthumbnail %}
         <p>{{ post.text|linebreaksbr }}</p>
-        {% if request.user and post.author.username %}
+        {% if user.is_authenticated and post.author == request.user %}
           <a class="btn btn-primary" 
             href="{% url 'posts:post_edit' post.id %}">редактировать запись
           </a>
-          {% endif %}
+        {% endif %}
           {% include 'includes/comment.html' %}
       </article>
     </div> 

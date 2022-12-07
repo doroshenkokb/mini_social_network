@@ -35,7 +35,8 @@ class Post(models.Model):
     image = models.ImageField(
         verbose_name='Картинка',
         upload_to='posts/',
-        blank=True
+        blank=True,
+        null=True
     )
 
     class Meta:
@@ -76,7 +77,7 @@ class Comment(models.Model):
         Post,
         blank=True,
         null=True,
-        on_delete=models.SET_NULL,
+        on_delete=models.CASCADE,
         related_name='comments',
     )
     author = models.ForeignKey(
@@ -116,3 +117,10 @@ class Follow(models.Model):
         on_delete=models.CASCADE,
         related_name='following',
     )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['author', 'user'], name='follows_unique'
+            )
+        ]

@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load thumbnail %}
 {% block title %}
-  {% if is_edit %}
+  {% if edit_post %}
     Редактирование записи
   {% else %}
     Новая запись
@@ -13,14 +13,20 @@
       <div class="card">
         <div class="card-body">
           {% include "includes/errors_check.html" %}
-          <form method="post" enctype="multipart/form-data"
-            {% if is_edit %}{% url "posts:post_edit"  post.id %}
-            {% else %}{% url "posts:post_create" %}{% endif %}">
+            {% if edit_post %}
+              <form method="post" action="{% url 'posts:post_edit' post_id %}" enctype="multipart/form-data">
+            {% else %}
+              <form method="post" action="{% url 'posts:post_create' %}" enctype="multipart/form-data">
+            {% endif %}
               {% csrf_token %}
               {% include "includes/fields_in_form.html" %}
                 <div class="col-md-6 offset-md-4">
                   <button type="submit" class="btn btn-primary">
-                    {% if is_edit %}Сохранить{% else %}Добавить{% endif %}
+                    {% if edit_post %}
+                      Сохранить
+                    {% else %}
+                      Добавить
+                    {% endif %}
                   </button>
                 </div> 
           </form>

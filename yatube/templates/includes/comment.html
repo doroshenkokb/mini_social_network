@@ -13,17 +13,17 @@
     </div>
   </div>
 {% endif %}
-{% for comment in comments %}
-  <div class="media mb-4">
-    <div class="media-body">
-      <h5 class="mt-0">
-        <a href="{% url 'posts:profile' comment.author.username %}">
-          {{ comment.author.username }}
-        </a>
-      </h5>
-      <p>
-        {{ comment.text }}
-      </p>
+  {% for comment in post.comments.all %}
+    <div class="media mb-4">
+      <div class="media-body">
+        <h5 class="mt-0">
+          <a href="{% url 'posts:profile' comment.author.username %}">
+            {{ comment.author.username }}  
+          </a>
+        </h5>
+        <p>
+          {{ comment.text|linebreaksbr }}
+        </p>
+      </div>
     </div>
-  </div>
-{% endfor %} 
+  {% endfor %}

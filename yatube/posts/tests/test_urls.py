@@ -39,9 +39,8 @@ class PostURLTests(TestCase):
             ),
             reverse(
                 'posts:post_detail',
-                kwargs={'post_id': '1'}
-            ),
-            '/unexisting_page/',
+                kwargs={'post_id': self.post.id}
+            )
         )
 
     def setUp(self):
@@ -55,22 +54,15 @@ class PostURLTests(TestCase):
         """Страницы доступны всем пользователям."""
         for url in self.urls:
             with self.subTest(url):
-                if url == '/unexisting_page/':
-                    response = self.guest_client.get('/unexisting_page/')
-                    self.assertEqual(
-                        response.status_code,
-                        HTTPStatus.NOT_FOUND
-                    )
-                else:
-                    response = self.guest_client.get(url)
-                    self.assertEqual(response.status_code, HTTPStatus.OK)
+                response = self.guest_client.get(url)
+                self.assertEqual(response.status_code, HTTPStatus.OK)
 
     def test_redirect_posts_post_edit_url_exists_at_author(self):
         """Страницы /posts/post_id/edit/ доступна только автору"""
         response = self.authorized_client.get(
             reverse(
                 'posts:post_edit',
-                kwargs={'post_id': '1'}
+                kwargs={'post_id': self.post.id}
             )
         )
         self.assertEqual(response.status_code, HTTPStatus.OK)
@@ -82,16 +74,28 @@ class PostURLTests(TestCase):
         response = self.authorized__non_author.get(
             reverse(
                 'posts:post_edit',
-                kwargs={'post_id': '1'}
+                kwargs={'post_id': self.post.id}
             ), follow=True
         )
-        self.assertRedirects(response, '/posts/1/')
+        self.assertRedirects(
+            response, reverse(
+                'posts:post_detail',
+                kwargs={'post_id': self.post.id}
+            )
+        )
 
     def test_creat_url_exists_at_author_and_authorized_client(self):
         """
         Страница /create/ доступна авторизированному пользователю и автору.
         """
         response = self.authorized_client.get(reverse('posts:post_create'))
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+
+    def test_follow_url_exists_at_author_and_authorized_client(self):
+        """
+        Страница /follow/ доступна авторизированному пользователю и автору.
+        """
+        response = self.authorized_client.get(reverse('posts:follow_index'))
         self.assertEqual(response.status_code, HTTPStatus.OK)
 
     def test_post_creat_edit_url_redirect_anonymous_on_auth_login(self):
@@ -114,21 +118,22 @@ class PostURLTests(TestCase):
         response = self.guest_client.get(
             reverse(
                 'posts:post_edit',
-                kwargs={'post_id': '1'}
+                kwargs={'post_id': self.post.id}
             ), follow=True
         )
         self.assertRedirects(response, '/auth/login/?next=/posts/1/edit/')
 
-    def test_post_comment_redirect_anonymous_on_auth_login(self):
+    def test_follow_url_redirect_anonymous_on_auth_login(self):
         """
-        Редирект с /posts/post_id/comment/ не
+        Редирект с /follow/ не
         авторизованнова пользователя.
         """
-        response = self.guest_client.post(
-            reverse("posts:add_comment", kwargs={"post_id": self.post.id}),
-            follow=True,
+        response = self.guest_client.get(
+            reverse(
+                'posts:follow_index'
+            ), follow=True
         )
-        self.assertRedirects(response, '/auth/login/?next=/posts/1/comment/')
+        self.assertRedirects(response, '/auth/login/?next=/follow/')
 
     def test_urls_uses_correct_template(self):
         """URL-адрес использует соответствующий шаблон(Общедоступные)."""
@@ -147,7 +152,7 @@ class PostURLTests(TestCase):
             ): 'posts/profile.html',
             reverse(
                 'posts:post_detail',
-                kwargs={'post_id': '1'}
+                kwargs={'post_id': self.post.id}
             ): 'posts/post_detail.html',
         }
         for url, template in self.templates_url_names_all_users.items():
@@ -157,15 +162,20 @@ class PostURLTests(TestCase):
                 self.assertTemplateUsed(response, template)
 
     def test_create_post_urls_uses_correct_template(self):
-        """URL-адрес использует соответствующий шаблон(create_post)."""
+        """
+        URL-адрес использует соответствующий шаблон(для авторизованных).
+        """
         self.templates_url_names_auth = {
             reverse(
                 'posts:post_edit',
-                kwargs={'post_id': '1'}
+                kwargs={'post_id': self.post.id}
             ): 'posts/create_post.html',
             reverse(
                 'posts:post_create'
             ): 'posts/create_post.html',
+            reverse(
+                'posts:follow_index'
+            ): 'posts/follow.html',
         }
         for url, template in self.templates_url_names_auth.items():
             with self.subTest(template=template):
