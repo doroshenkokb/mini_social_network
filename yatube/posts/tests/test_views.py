@@ -66,18 +66,15 @@ class PostViewsTests(TestCase):
 
     def context_ckeck(self, response, text, author, group, image):
         """Проверка контекста."""
-        if 'page_obj' in response.context:
-            post = response.context['page_obj'][0]
-            self.assertEqual(post.text, text)
-            self.assertEqual(post.author, author)
-            self.assertEqual(post.group, group)
-            self.assertEqual(post.image, image)
-        else:
-            post = response.context['post']
-            self.assertEqual(post.text, text)
-            self.assertEqual(post.author, author)
-            self.assertEqual(post.group, group)
-            self.assertEqual(post.image, image)
+        post = (
+            response.context['page_obj'][0] 
+            if 'page_obj' in response.context 
+            else response.context['post']
+        )
+        self.assertEqual(post.text, text)
+        self.assertEqual(post.author, author)
+        self.assertEqual(post.group, group)
+        self.assertEqual(post.image, image)
 
     def test_pages_uses_correct_template(self):
         """URL-адрес использует соответствующий шаблон."""

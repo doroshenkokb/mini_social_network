@@ -24,12 +24,10 @@
         </a>
       {% endif %}
     </div>
-      <article>
-        {% for post in page_obj %}
-          {% include "includes/post_inc.html"  %}
-            {% if not forloop.last %}<hr>{% endif %}
-        {% endfor %}
-      <article>
+      {% for post in page_obj %}
+        {% include "includes/post_inc.html"  %}
+          {% if not forloop.last %}<hr>{% endif %}
+      {% endfor %}
   </div>
   {% include 'posts/includes/paginator.html' %}
 {% endblock %}

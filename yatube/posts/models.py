@@ -76,7 +76,6 @@ class Comment(models.Model):
     post = models.ForeignKey(
         Post,
         blank=True,
-        null=True,
         on_delete=models.CASCADE,
         related_name='comments',
     )

@@ -40,6 +40,7 @@ class PaginatorViewsTest(TestCase):
         }
 
     def setUp(self):
+        self.client = Client()
         self.authorized_client_follower = Client()
         self.authorized_client_follower.force_login(self.user_follower)
 
