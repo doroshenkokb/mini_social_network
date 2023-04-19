@@ -12,13 +12,15 @@ SECRET_KEY = 'w^5w%yk)q@o5*c-o@fy7yjydws%%z6z+1^nzamixfp1&3e5sn1'
 
 CSRF_FAILURE_VIEW = 'core.views.csrf_failure'
 
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
     '[::1]',
     'testserver',
+    'www.TroutBoy.pythonanywhere.com',
+    'TroutBoy.pythonanywhere.com',
 ]
 
 INSTALLED_APPS = [
@@ -33,6 +35,7 @@ INSTALLED_APPS = [
     'core.apps.CoreConfig',
     'about.apps.AboutConfig',
     'sorl.thumbnail',
+    'debug_toolbar',
 
 ]
 
@@ -50,6 +53,11 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'debug_toolbar.middleware.DebugToolbarMiddleware',
+]
+
+INTERNAL_IPS = [
+    '127.0.0.1',
 ]
 
 ROOT_URLCONF = 'yatube.urls'
@@ -121,4 +129,4 @@ LOGIN_URL = 'users:login'
 
 LOGIN_REDIRECT_URL = 'posts:index'
 
-# LOGOUT_REDIRECT_URL = 'posts:index'
+LOGOUT_REDIRECT_URL = 'posts:index'
