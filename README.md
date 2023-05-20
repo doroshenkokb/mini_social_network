@@ -37,24 +37,23 @@
     ```python
     python3 -m venv venv
     source venv/bin/activate
+    python3 -m pip install --upgrade pip
     pip install -r requirements.txt
     ```
 
-4. Для запуска в виртуальном окружении, после создания и активации виртуального пространства, установки зависимостей, запустить проект локально:
+4. Выполнить миграции на уровне проекта:
 
-    Для Windows:
+   ```python
+   cd yatube
+   python3 manage.py makemigrations
+   python3 manage.py migrate
+   ```
+
+5. Запустить проект:
 
     ```python
-    cd yatube
-    python manage.py runserver
-    ```
-
-    Для Mac/Linux:
-
-    ```python
-    cd yatube
-    python3 manage.py runserver
-    ```
+   python manage.py runserver
+   ```
 
 5. Проверить доступность сервиса:
 
